@@ -1,3 +1,14 @@
+{==============================================================================}
+{                                                                              }
+{   Simple timer                                                               }
+{                                                                              }
+{   Non visual variant of TTimer component.                                    }
+{                                                                              }
+{   ©František Milt 2015-01-11                                                 }
+{                                                                              }
+{   Version 1.1                                                                }
+{                                                                              }
+{==============================================================================}
 unit SimpleTimer;
 
 {$IFDEF FPC}
@@ -115,6 +126,8 @@ fInterval := 1000;
 fEnabled := False;
 end;
 
+//------------------------------------------------------------------------------
+
 destructor TSimpleTimer.Destroy;
 begin
 fEnabled := False;
@@ -123,6 +136,8 @@ If fOwnsWindow then fWindow.Free
   else fWindow.OnMessage.Remove(MessagesHandler);
 inherited;
 end;
+
+//------------------------------------------------------------------------------
 
 procedure TSimpleTimer.ProcessMassages;
 begin
