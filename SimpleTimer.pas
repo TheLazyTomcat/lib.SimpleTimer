@@ -87,7 +87,7 @@ begin
 KillTimer(WindowHandle,fTimerID);
 If (fInterval > 0) and fEnabled then
   If SetTimer(WindowHandle,fTimerID,fInterval,nil) = 0 then
-    raise EOutOfResources.Create('Not enough timers available');
+    raise EOutOfResources.Create('Not enough timers available.');
 end;
 
 procedure TSimpleTimer.MessagesHandler(var Msg: TMessage; var Handled: Boolean);
