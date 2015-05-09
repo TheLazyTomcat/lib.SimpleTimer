@@ -9,7 +9,7 @@
 {                                                                              }
 {   Simple timer                                                               }
 {                                                                              }
-{   Non visual variant of TTimer component.                                    }
+{   Non visual variant of TTimer component                                     }
 {                                                                              }
 {   ©František Milt 2015-01-11                                                 }
 {                                                                              }
