@@ -5,17 +5,21 @@
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 -------------------------------------------------------------------------------}
-{==============================================================================}
-{                                                                              }
-{   Simple timer                                                               }
-{                                                                              }
-{   Non visual variant of TTimer component                                     }
-{                                                                              }
-{   ©František Milt 2015-12-13                                                 }
-{                                                                              }
-{   Version 1.1.1                                                              }
-{                                                                              }
-{==============================================================================}
+{===============================================================================
+
+  Simple timer
+
+  Non visual variant of TTimer component
+
+  ©František Milt 2015-12-13
+
+  Version 1.1.1
+
+  Dependencies:
+    AuxTypes      - github.com/ncs-sniper/Lib.AuxTypes
+    UtilityWindow - github.com/ncs-sniper/Lib.UtilityWindow
+
+===============================================================================}
 unit SimpleTimer;
 
 {$IF not(defined(WINDOWS) or defined(MSWINDOWS))}
