@@ -16,8 +16,10 @@
   Version 1.1.1
 
   Dependencies:
-    AuxTypes      - github.com/ncs-sniper/Lib.AuxTypes
-    UtilityWindow - github.com/ncs-sniper/Lib.UtilityWindow
+    AuxTypes       - github.com/ncs-sniper/Lib.AuxTypes
+    UtilityWindow  - github.com/ncs-sniper/Lib.UtilityWindow
+    MulticastEvent - github.com/ncs-sniper/Lib.MulticastEvent
+    WndAlloc       - github.com/ncs-sniper/Lib.WndAlloc
 
 ===============================================================================}
 unit SimpleTimer;
