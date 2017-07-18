@@ -32,6 +32,8 @@ unit SimpleTimer;
   {$MODE Delphi}
 {$ENDIF}
 
+{$TYPEINFO ON}
+
 interface
 
 uses
