@@ -17,6 +17,7 @@
 
   Dependencies:
     AuxTypes       - github.com/ncs-sniper/Lib.AuxTypes
+    AuxClasses     - github.com/ncs-sniper/Lib.AuxClasses
     UtilityWindow  - github.com/ncs-sniper/Lib.UtilityWindow
     MulticastEvent - github.com/ncs-sniper/Lib.MulticastEvent
     WndAlloc       - github.com/ncs-sniper/Lib.WndAlloc
@@ -38,10 +39,10 @@ interface
 
 uses
   Windows, Messages, Classes,
-  UtilityWindow, AuxTypes;
+  UtilityWindow, AuxTypes, AuxClasses;
 
 type
-  TSimpleTimer = class(TObject)
+  TSimpleTimer = class(TCustomObject)
   private
     fWindow:      TUtilityWindow;
     fTimerID:     PtrUInt;
