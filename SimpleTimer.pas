@@ -11,9 +11,9 @@
 
   Non visual variant of TTimer component
 
-  ©František Milt 2015-12-13
+  ©František Milt 2018-10-22
 
-  Version 1.1.1
+  Version 1.1.2
 
   Dependencies:
     AuxTypes       - github.com/ncs-sniper/Lib.AuxTypes
@@ -32,8 +32,6 @@ unit SimpleTimer;
 {$IFDEF FPC}
   {$MODE Delphi}
 {$ENDIF}
-
-{$TYPEINFO ON}
 
 interface
 
@@ -61,7 +59,6 @@ type
     constructor Create(Window: TUtilityWindow = nil; TimerID: PtrUInt = 1);
     destructor Destroy; override;
     procedure ProcessMassages;
-  published
     property WindowHandle: HWND read GetWindowHandle;
     property Window: TUtilityWindow read fWindow;
     property TimerID: PtrUInt read fTimerID;
