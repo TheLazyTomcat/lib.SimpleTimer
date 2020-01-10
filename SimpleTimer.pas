@@ -11,11 +11,11 @@
 
     Simple non-visual variant of TTimer component.
 
-  Version 1.1.3 (2019-10-16)
+  Version 1.1.4 (2020-01-10)
 
-  Last change 2019-10-16
+  Last change 2020-01-10
 
-  ©2015-2019 František Milt
+  ©2015-2020 František Milt
 
   Contacts:
     František Milt: frantisek.milt@gmail.com
@@ -194,7 +194,7 @@ end;
 
 procedure TSimpleTimer.ProcessMassages;
 begin
-fWindow.ProcessMessages(False);
+fWindow.ContinuousProcessMessages(False);
 end;
 
 end.
