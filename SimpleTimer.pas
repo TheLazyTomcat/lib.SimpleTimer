@@ -13,7 +13,7 @@
 
   Version 1.1.4 (2020-01-10)
 
-  Last change 2020-01-10
+  Last change 2020-08-02
 
   ©2015-2020 František Milt
 
@@ -54,6 +54,7 @@ unit SimpleTimer;
   {$DEFINE FPC_DisableWarns}
   {$MACRO ON}
 {$ENDIF}
+{$H+}
 
 interface
 
