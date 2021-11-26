@@ -9,13 +9,13 @@
 
   Simple timer
 
-    Simple non-visual variant of TTimer component.
+    Simple non-visual interval timer.
 
-  Version 1.1.4 (2020-01-10)
+  Version 1.1.5 (2021-11-26)
 
-  Last change 2020-08-02
+  Last change 2021-11-26
 
-  ©2015-2020 František Milt
+  ©2015-2021 František Milt
 
   Contacts:
     František Milt: frantisek.milt@gmail.com
@@ -45,12 +45,15 @@
 ===============================================================================}
 unit SimpleTimer;
 
-{$IF not(defined(WINDOWS) or defined(MSWINDOWS))}
+{$IF Defined(WINDOWS) or Defined(MSWINDOWS)}
+  {$DEFINE Windows}
+{$ELSE}
   {$MESSAGE FATAL 'Unsupported operating system.'}
 {$IFEND}
 
 {$IFDEF FPC}
-  {$MODE Delphi}
+  {$MODE ObjFPC}
+  {$MODESWITCH ClassicProcVars+}
   {$DEFINE FPC_DisableWarns}
   {$MACRO ON}
 {$ENDIF}
@@ -59,44 +62,56 @@ unit SimpleTimer;
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes,
+  Windows, Messages, SysUtils,
   AuxTypes, AuxClasses, UtilityWindow;
 
-{=== TSimpleTimer - library-specific exceptions ===============================}
+{===============================================================================
+    Library-specific exceptions
+===============================================================================}
 type
   ESTException = class(Exception);
 
-  ESTOutOfResources = class(ESTException);
+  ESTTimerCreationError = class(ESTException);
 
-{=== TSimpleTimer - class declaration =========================================}
-
+{===============================================================================
+--------------------------------------------------------------------------------
+                                  TSimpleTimer
+--------------------------------------------------------------------------------
+===============================================================================}
+{===============================================================================
+    TSimpleTimer - class declaration
+===============================================================================}
+type
   TSimpleTimer = class(TCustomObject)
   private
-    fOwnsWindow:  Boolean;
-    fWindow:      TUtilityWindow;
-    fTimerID:     PtrUInt;
-    fInterval:    UInt32;
-    fEnabled:     Boolean;
-    fTag:         Integer;
-    fOnTimer:     TNotifyEvent;
-    Function GetWindowHandle: HWND;
+    fOwnsWindow:      Boolean;
+    fWindow:          TUtilityWindow;
+    fTimerID:         PtrUInt;
+    fInterval:        UInt32;
+    fEnabled:         Boolean;
+    fTag:             Integer;
+    fOnTimerEvent:    TNotifyEvent;
+    fOnTimerCallback: TNotifyCallback;
     procedure SetInterval(Value: UInt32);
     procedure SetEnabled(Value: Boolean);
   protected
-    procedure SetupTimer;
-    procedure MessagesHandler(var Msg: TMessage; var Handled: Boolean; Sent: Boolean);
+    procedure Initialize(Window: TUtilityWindow; TimerID: PtrUInt); virtual;
+    procedure Finalize; virtual;
+    procedure SetupTimer; virtual;
+    procedure MessagesHandler(var Msg: TMessage; var Handled: Boolean; Sent: Boolean); virtual;
   public
     constructor Create(Window: TUtilityWindow = nil; TimerID: PtrUInt = 1);
     destructor Destroy; override;
-    procedure ProcessMassages;
-    property WindowHandle: HWND read GetWindowHandle;
+    procedure ProcessMassages; virtual;
+    property OwnsWindow: Boolean read fOwnsWindow;
     property Window: TUtilityWindow read fWindow;
     property TimerID: PtrUInt read fTimerID;
-    property OwnsWindow: Boolean read fOwnsWindow;
     property Interval: UInt32 read fInterval write SetInterval;
     property Enabled: Boolean read fEnabled write SetEnabled;
     property Tag: Integer read fTag write fTag;
-    property OnTimer: TNotifyEvent read fOnTimer write fOnTimer;
+    property OnTimerCallback: TNotifyCallback read fOnTimerCallback write fOnTimerCallback;
+    property OnTimerEvent: TNotifyEvent read fOnTimerEvent write fOnTimerEvent;
+    property OnTimer: TNotifyEvent read fOnTimerEvent write fOnTimerEvent;
   end;
 
 implementation
@@ -106,20 +121,30 @@ implementation
   {$DEFINE W5024:={$WARN 5024 OFF}} // Parameter "$1" not used
 {$ENDIF}
 
-{=== TSimpleTimer - class implementation ======================================}
+{===============================================================================
+--------------------------------------------------------------------------------
+                                  TSimpleTimer
+--------------------------------------------------------------------------------
+===============================================================================}
+const
+  USER_TIMER_MAXIMUM = $7FFFFFFF;
+  USER_TIMER_MINIMUM = $0000000A;
 
-{--- TSimpleTimer - private methods -------------------------------------------}
-
-Function TSimpleTimer.GetWindowHandle: HWND;
-begin
-Result := fWindow.WindowHandle;
-end;
-
-//------------------------------------------------------------------------------
+{===============================================================================
+    TSimpleTimer - class implementation
+===============================================================================}
+{-------------------------------------------------------------------------------
+    TSimpleTimer - private methods
+-------------------------------------------------------------------------------}
 
 procedure TSimpleTimer.SetInterval(Value: UInt32);
 begin
-fInterval := Value;
+If Value < USER_TIMER_MINIMUM then
+  fInterval := USER_TIMER_MINIMUM
+else If Value > USER_TIMER_MAXIMUM then
+  fInterval := USER_TIMER_MAXIMUM
+else
+  fInterval := Value;
 SetupTimer;
 end;
 
@@ -131,37 +156,12 @@ fEnabled := Value;
 SetupTimer;
 end;
 
-{--- TSimpleTimer - protected methods -----------------------------------------}
+{-------------------------------------------------------------------------------
+    TSimpleTimer - protected methods
+-------------------------------------------------------------------------------}
 
-procedure TSimpleTimer.SetupTimer;
+procedure TSimpleTimer.Initialize(Window: TUtilityWindow; TimerID: PtrUInt);
 begin
-KillTimer(WindowHandle,fTimerID);
-If (fInterval > 0) and fEnabled then
-  If SetTimer(WindowHandle,fTimerID,fInterval,nil) = 0 then
-    raise ESTOutOfResources.Create('Not enough timers available.');
-end;
-
-//------------------------------------------------------------------------------
-
-{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
-procedure TSimpleTimer.MessagesHandler(var Msg: TMessage; var Handled: Boolean; Sent: Boolean);
-begin
-If (Msg.Msg = WM_TIMER) and (PtrUInt(Msg.wParam) = fTimerID) then
-  begin
-    If Assigned(fOnTimer) then
-      fOnTimer(Self);
-    Msg.Result := 0;
-    Handled := True;
-  end
-else Handled := False;
-end;
-{$IFDEF FPCDWM}{$POP}{$ENDIF}
-
-{--- TSimpleTimer - public methods --------------------------------------------}
-
-constructor TSimpleTimer.Create(Window: TUtilityWindow = nil; TimerID: PtrUInt = 1);
-begin
-inherited Create;
 If Assigned(Window) then
   begin
     fOwnsWindow := False;
@@ -180,7 +180,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-destructor TSimpleTimer.Destroy;
+procedure TSimpleTimer.Finalize;
 begin
 fEnabled := False;
 SetupTimer;
@@ -188,6 +188,51 @@ If fOwnsWindow then
   fWindow.Free
 else
   fWindow.OnMessage.Remove(MessagesHandler);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TSimpleTimer.SetupTimer;
+begin
+KillTimer(fWindow.WindowHandle,fTimerID);
+If (fInterval > 0) and fEnabled then
+  If SetTimer(fWindow.WindowHandle,fTimerID,fInterval,nil) = 0 then
+    raise ESTTimerCreationError.CreateFmt('TSimpleTimer.SetupTimer: Failed to setup timer (0x%.8x).',[GetLastError]);
+end;
+
+//------------------------------------------------------------------------------
+
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
+procedure TSimpleTimer.MessagesHandler(var Msg: TMessage; var Handled: Boolean; Sent: Boolean);
+begin
+If (Msg.Msg = WM_TIMER) and (PtrUInt(Msg.wParam) = fTimerID) then
+  begin
+    If Assigned(fOnTimerEvent) then
+      fOnTimerEvent(Self);
+    If Assigned(fOnTimerCallback) then
+      fOnTimerCallback(Self);  
+    Msg.Result := 0;
+    Handled := True;
+  end
+else Handled := False;
+end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
+
+{-------------------------------------------------------------------------------
+    TSimpleTimer - public methods
+-------------------------------------------------------------------------------}
+
+constructor TSimpleTimer.Create(Window: TUtilityWindow = nil; TimerID: PtrUInt = 1);
+begin
+inherited Create;
+Initialize(Window,TimerID);
+end;
+
+//------------------------------------------------------------------------------
+
+destructor TSimpleTimer.Destroy;
+begin
+Finalize;
 inherited;
 end;
 
