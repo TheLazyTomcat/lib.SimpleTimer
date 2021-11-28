@@ -11,6 +11,22 @@
 
     Simple non-visual interval timer.
 
+    In Windows, it uses standard timer (SetTimer, KillTimer) that signals
+    timeout using windows message (WM_TIMER). The on-timer event is called
+    directly from handler of this message.
+    In main thread, the messages are dispatched automatically, but if the
+    timer is created in non-main thread, the method ProcessMessages must be
+    called to process timer message and fire the on-timer event. 
+
+    In Linux, it is based around POSIX interval timer (timer_create). The
+    timeout is handled using signals, but the on-timer event is NOT called
+    from signal handler. Instead, signal handler only sets a flag indicating
+    timeout, and event is called from ProcessMessages method.
+    In GUI application, if the timer is created in the main thread, method
+    ProcessMessages is called automatically from application's on-idle event.
+    In non-main thread, you are responsible to call this method - so the
+    behavior is technically the same as in Windows OS.
+
   Version 1.2 (2021-11-28)
 
   Last change 2021-11-28
@@ -282,49 +298,45 @@ fWindow.OnMessage.Add(MessagesHandler);
 fTimerID := TimerID;
 {$ELSE}
 procedure TSimpleTimer.Initialize;
-
-  Function GetFreeSignal(out SignalNo: cint): Boolean;
-  var
-    ii:     cint;
-    Probe:  sigactionrec;
-  begin
-    {$message 'rework - not thread safe'}
-    SignalNo := 0;
-    Result := False;
-    For ii := __libc_current_sigrtmin to __libc_current_sigrtmax do
-      begin
-        If fpsigaction(ii,nil,@Probe) = 0 then
-          begin
-            If not Assigned(Probe.sa_handler) or (@Probe.sa_handler = @SignalHandler)  then
-              begin
-                SignalNo := ii;
-                Result := True;
-                Break{For ii};
-              end;
-          end
-        else raise ESTSignalSetupError.CreateFmt('TSimpleTimer.Initialize.GetFreeSignal: Failed to probe signal #%d (%d).',[ii,errno]);
-      end;
-  end;
-
 var
-  SignalNumber: cint;
-  SignalAction: sigactionrec;
-  SignalEvent:  sigevent;
-  NewTimerID:   timer_t;
+  SignalNumber:     cint;
+  SignalAction:     sigactionrec;
+  OldSignalAction:  sigactionrec;
+  i:                cint;
+  SignalEvent:      sigevent;
+  NewTimerID:       timer_t;
 begin
 fTimerExpired := False;
 fInMainThread := MainThreadID = GetCurrentThreadID;
-// get free signal (or one already used for this purpose)
-If not GetFreeSignal(SignalNumber) then
-  raise ESTSignalSetupError.Create('TSimpleTimer.Initialize: No unused signal found.');
 // setup signal handler
 FillChar(Addr(SignalAction)^,SizeOf(sigactionrec),0);
 SignalAction.sa_handler := SignalHandler;
 SignalAction.sa_flags := SA_SIGINFO;
 If fpsigemptyset(SignalAction.sa_mask) <> 0 then
   raise ESTSignalSetupError.CreateFmt('TSimpleTimer.Initialize: Emptying signal set failed (%d).',[errno]);
-If fpsigaction(SignalNumber,@SignalAction,nil) <> 0 then
-  raise ESTSignalSetupError.CreateFmt('TSimpleTimer.Initialize: Failed to setup signal action (%d).',[errno]);
+// get free signal (or one already used for this library)
+SignalNumber := Pred(__libc_current_sigrtmin);
+// following is not particularly thread-safe, but meh...
+For i := __libc_current_sigrtmin to __libc_current_sigrtmax do
+  begin
+    If fpsigaction(i,@SignalAction,@OldSignalAction) = 0 then
+      begin
+        If not Assigned(OldSignalAction.sa_handler) or (@OldSignalAction.sa_handler = @SignalHandler) then
+          begin
+            SignalNumber := i;
+            Break{For i};
+          end
+        else
+          begin
+            // restore original signal handler
+            If fpsigaction(i,@OldSignalAction,nil) <> 0 then
+              raise ESTSignalSetupError.CreateFmt('TSimpleTimer.Initialize: Failed to restore signal action #%d (%d).',[i,errno]);
+          end;
+      end
+    else raise ESTSignalSetupError.CreateFmt('TSimpleTimer.Initialize: Failed to setup signal action #%d (%d).',[i,errno]);
+  end;
+If SignalNumber < __libc_current_sigrtmin then
+  raise ESTSignalSetupError.Create('TSimpleTimer.Initialize: No unused signal found.');
 // setup and create timer
 FillChar(Addr(SignalEvent)^,SizeOf(sigevent),0);
 SignalEvent.sigev_value.sigval_ptr := Pointer(Self);
@@ -353,7 +365,10 @@ else
 {$ELSE}
 If timer_delete(timer_t(fTimerID)) <> 0 then
   raise ESTTimerDeletionError.CreateFmt('Finalize.Initialize: Failed to delete timer (%d).',[errno_ptr^]);
-// note that signal handler stays assigned, but it should pose no problem
+{
+  Note that signal handler stays assigned, but it should pose no problem as
+  the timer is destroyed and will not invoke the signal handler anymore.
+}
 {$ENDIF}
 end;
 
@@ -379,7 +394,7 @@ If timer_settime(timer_t(fTimerID),0,@TimerTime,nil) <> 0 then
 If fInMainThread then
   Application.RemoveOnIdleHandler(OnAppIdleHandler);
 {$ENDIF}
-// armtimer
+// arm timer
 If (fInterval > 0) and fEnabled then
   begin
     TimerTime.it_interval.tv_sec := fInterval div 1000;
