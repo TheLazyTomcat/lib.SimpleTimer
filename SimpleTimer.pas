@@ -11,9 +11,9 @@
 
     Simple non-visual interval timer.
 
-  Version 1.1.5 (2021-11-26)
+  Version 1.2 (2021-11-28)
 
-  Last change 2021-11-26
+  Last change 2021-11-28
 
   ©2015-2021 František Milt
 
@@ -34,13 +34,16 @@
   Dependencies:
     AuxTypes       - github.com/TheLazyTomcat/Lib.AuxTypes
     AuxClasses     - github.com/TheLazyTomcat/Lib.AuxClasses
-    UtilityWindow  - github.com/TheLazyTomcat/Lib.UtilityWindow
-    MulticastEvent - github.com/TheLazyTomcat/Lib.MulticastEvent
-    WndAlloc       - github.com/TheLazyTomcat/Lib.WndAlloc
-    StrRect        - github.com/TheLazyTomcat/Lib.StrRect
+  * UtilityWindow  - github.com/TheLazyTomcat/Lib.UtilityWindow
+  * MulticastEvent - github.com/TheLazyTomcat/Lib.MulticastEvent
+  * WndAlloc       - github.com/TheLazyTomcat/Lib.WndAlloc
+  * StrRect        - github.com/TheLazyTomcat/Lib.StrRect
   * SimpleCPUID    - github.com/TheLazyTomcat/Lib.SimpleCPUID
 
-    SimpleCPUID is required only when PurePascal symbol is not defined.
+  SimpleCPUID is required only when PurePascal symbol is not defined.
+
+  Libraries UtilityWindow, MulticastEvent, WndAlloc, StrRect and SimpleCPUID
+  are required only when compiling for Windows OS.
 
 ===============================================================================}
 unit SimpleTimer;
@@ -96,6 +99,7 @@ type
     fWindow:          TUtilityWindow;
   {$ELSE}
     fTimerExpired:    Boolean;  // only for internal use
+    fInMainThread:    Boolean;  // -//-
   {$ENDIF}
     fTimerID:         PtrUInt;
     fInterval:        UInt32;
@@ -117,6 +121,9 @@ type
     procedure MessagesHandler(var Msg: TMessage; var Handled: Boolean; Sent: Boolean); virtual;
   {$ELSE}
     procedure TimerExpired; virtual;
+  {$ENDIF}
+  {$IFDEF Linux}
+    procedure OnAppIdleHandler(Sender: TObject; var Done: Boolean); virtual;
   {$ENDIF}
     procedure DoOnTimer; virtual;
   public
@@ -144,7 +151,7 @@ implementation
 
 {$IFDEF Linux}
 uses
-  BaseUnix, Linux;
+  Classes, BaseUnix, Linux{$IFDEF LCL}, Forms{$ENDIF};
 
 {$LINKLIB RT}
 {$LINKLIB C}
@@ -305,6 +312,8 @@ var
   SignalEvent:  sigevent;
   NewTimerID:   timer_t;
 begin
+fTimerExpired := False;
+fInMainThread := MainThreadID = GetCurrentThreadID;
 // get free signal (or one already used for this purpose)
 If not GetFreeSignal(SignalNumber) then
   raise ESTSignalSetupError.Create('TSimpleTimer.Initialize: No unused signal found.');
@@ -366,6 +375,10 @@ If (fInterval > 0) and fEnabled then
 FillChar(Addr(TimerTime)^,SizeOf(itimerspec),0);
 If timer_settime(timer_t(fTimerID),0,@TimerTime,nil) <> 0 then
   raise ESTTimerSetupError.CreateFmt('TSimpleTimer.SetupTimer: Failed to disarm timer (%d).',[errno_ptr^]);
+{$IFDEF LCL}
+If fInMainThread then
+  Application.RemoveOnIdleHandler(OnAppIdleHandler);
+{$ENDIF}
 // armtimer
 If (fInterval > 0) and fEnabled then
   begin
@@ -375,6 +388,10 @@ If (fInterval > 0) and fEnabled then
     TimerTime.it_value.tv_nsec := TimerTime.it_interval.tv_nsec;
     If timer_settime(timer_t(fTimerID),0,@TimerTime,nil) <> 0 then
       raise ESTTimerSetupError.CreateFmt('TSimpleTimer.SetupTimer: Failed to arm timer (%d).',[errno_ptr^]);
+  {$IFDEF LCL}
+  If fInMainThread then
+    Application.AddOnIdleHandler(OnAppIdleHandler,False);
+  {$ENDIF}
   end;
 {$ENDIF}
 end;
@@ -404,6 +421,19 @@ fTimerExpired := True;
 end;
 
 {$ENDIF}
+
+//------------------------------------------------------------------------------
+
+{$IFDEF Linux}
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
+procedure TSimpleTimer.OnAppIdleHandler(Sender: TObject; var Done: Boolean);
+begin
+ProcessMassages;
+Done := True;
+end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
+{$ENDIF}
+
 //------------------------------------------------------------------------------
 
 procedure TSimpleTimer.DoOnTimer;
