@@ -74,7 +74,7 @@ type
   ESTException = class(Exception);
 
   ESTTimerSetupError    = class(ESTException);
-{$IFNDEF Windows}
+{$IFDEF Linux}
   ESTSignalSetupError   = class(ESTException);
   ESTTimerCreationError = class(ESTException);
   ESTTimerDeletionError = class(ESTException);
@@ -212,7 +212,9 @@ Function errno_ptr: pcint; cdecl; external name '__errno_location';
 Function __libc_current_sigrtmin: cint; cdecl; external;
 Function __libc_current_sigrtmax: cint; cdecl; external;
 
-//==============================================================================
+{-------------------------------------------------------------------------------
+    TSimpleTimer - signal handler
+-------------------------------------------------------------------------------}
 
 {$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 procedure SignalHandler(signo: cint; siginfo: psiginfo; context: psigcontext); cdecl;
@@ -312,7 +314,8 @@ SignalAction.sa_handler := SignalHandler;
 SignalAction.sa_flags := SA_SIGINFO;
 If fpsigemptyset(SignalAction.sa_mask) <> 0 then
   raise ESTSignalSetupError.CreateFmt('TSimpleTimer.Initialize: Emptying signal set failed (%d).',[errno]);
-fpsigaction(SignalNumber,@SignalAction,nil);
+If fpsigaction(SignalNumber,@SignalAction,nil) <> 0 then
+  raise ESTSignalSetupError.CreateFmt('TSimpleTimer.Initialize: Failed to setup signal action (%d).',[errno]);
 // setup and create timer
 FillChar(Addr(SignalEvent)^,SizeOf(sigevent),0);
 SignalEvent.sigev_value.sigval_ptr := Pointer(Self);
@@ -341,6 +344,7 @@ else
 {$ELSE}
 If timer_delete(timer_t(fTimerID)) <> 0 then
   raise ESTTimerDeletionError.CreateFmt('Finalize.Initialize: Failed to delete timer (%d).',[errno_ptr^]);
+// note that signal handler stays assigned, but it should pose no problem
 {$ENDIF}
 end;
 
