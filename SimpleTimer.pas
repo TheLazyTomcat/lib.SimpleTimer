@@ -29,9 +29,9 @@
 
   Version 1.2 (2021-11-28)
 
-  Last change 2021-11-28
+  Last change 2022-09-14
 
-  ©2015-2021 František Milt
+  ©2015-2022 František Milt
 
   Contacts:
     František Milt: frantisek.milt@gmail.com
@@ -109,7 +109,7 @@ type
 ===============================================================================}
 type
   TSimpleTimer = class(TCustomObject)
-  private
+  protected
   {$IFDEF Windows}
     fOwnsWindow:      Boolean;
     fWindow:          TUtilityWindow;
@@ -123,9 +123,8 @@ type
     fTag:             Integer;
     fOnTimerEvent:    TNotifyEvent;
     fOnTimerCallback: TNotifyCallback;
-    procedure SetInterval(Value: UInt32);
-    procedure SetEnabled(Value: Boolean);
-  protected
+    procedure SetInterval(Value: UInt32); virtual;
+    procedure SetEnabled(Value: Boolean); virtual;
   {$IFDEF Windows}
     procedure Initialize(Window: TUtilityWindow; TimerID: PtrUInt); virtual;
   {$ELSE}
@@ -253,7 +252,7 @@ end;
     TSimpleTimer - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TSimpleTimer - private methods
+    TSimpleTimer - protected methods
 -------------------------------------------------------------------------------}
 
 procedure TSimpleTimer.SetInterval(Value: UInt32);
@@ -277,9 +276,7 @@ fEnabled := Value;
 SetupTimer;
 end;
 
-{-------------------------------------------------------------------------------
-    TSimpleTimer - protected methods
--------------------------------------------------------------------------------}
+//------------------------------------------------------------------------------
 
 {$IFDEF Windows}
 procedure TSimpleTimer.Initialize(Window: TUtilityWindow; TimerID: PtrUInt);
@@ -454,8 +451,8 @@ end;
 procedure TSimpleTimer.DoOnTimer;
 begin
 If Assigned(fOnTimerEvent) then
-  fOnTimerEvent(Self);
-If Assigned(fOnTimerCallback) then
+  fOnTimerEvent(Self)
+else If Assigned(fOnTimerCallback) then
   fOnTimerCallback(Self);
 end;
 
