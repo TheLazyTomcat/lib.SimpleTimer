@@ -29,7 +29,7 @@
 
   Version 1.2.3 (2024-08-01)
 
-  Last change 2024-08-01
+  Last change 2024-08-05
 
   ©2015-2024 František Milt
 
@@ -171,7 +171,7 @@ type
     constructor Create;
   {$ENDIF}
     destructor Destroy; override;
-    procedure ProcessMassages; virtual;
+    procedure ProcessMessages; virtual;
   {$IFDEF Windows}
     property OwnsWindow: Boolean read fOwnsWindow;
     property Window: TUtilityWindow read fWindow;
@@ -446,7 +446,7 @@ end;
 {$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 procedure TSimpleTimer.OnAppIdleHandler(Sender: TObject; var Done: Boolean);
 begin
-ProcessMassages;
+ProcessMessages;
 end;
 {$IFDEF FPCDWM}{$POP}{$ENDIF}
 {$ENDIF}
@@ -485,7 +485,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TSimpleTimer.ProcessMassages;
+procedure TSimpleTimer.ProcessMessages;
 begin
 {$IFDEF Windows}
 fWindow.ProcessMessages(False);
