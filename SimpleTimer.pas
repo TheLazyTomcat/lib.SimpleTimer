@@ -28,7 +28,7 @@
 
   Version 1.3 (2025-02-18)
 
-  Last change 2025-02-20
+  Last change 2025-02-28
 
   ©2015-2025 František Milt
 
@@ -197,6 +197,7 @@ implementation
 uses
   Classes, BaseUnix, Linux;
 
+{$LINKLIB C}
 {$LINKLIB RT}
 {$ENDIF}
 
